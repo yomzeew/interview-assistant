@@ -1,0 +1,23 @@
+{
+  "name": "interview-caption-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/extension",
+    "apps/server"
+  ],
+  "scripts": {
+    "dev": "npm run build --workspace=packages/shared && concurrently \"npm run dev --workspace=apps/server\" \"npm run dev --workspace=apps/extension\" \"npm run dev --workspace=packages/shared\"",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/server && npm run build --workspace=apps/extension",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  }
+}

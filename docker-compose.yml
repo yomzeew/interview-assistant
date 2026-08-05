@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-mock}
+      TRANSCRIPTION_API_KEY: ${TRANSCRIPTION_API_KEY:-}
+      TRANSLATION_PROVIDER: ${TRANSLATION_PROVIDER:-mock}
+      TRANSLATION_API_KEY: ${TRANSLATION_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-haiku-20241022}
+      SESSION_TOKEN_SECRET: ${SESSION_TOKEN_SECRET:-change-me-in-production}
+      SESSION_TOKEN_TTL_SECONDS: ${SESSION_TOKEN_TTL_SECONDS:-300}
+      EXTENSION_ORIGIN: ${EXTENSION_ORIGIN:-chrome-extension://your-extension-id}
+      PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:4000}
+      PUBLIC_WEBSOCKET_URL: ${PUBLIC_WEBSOCKET_URL:-ws://localhost:4000/ws}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

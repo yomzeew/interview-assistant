@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: interview-caption-assistant
+    runtime: docker
+    dockerfilePath: ./apps/server/Dockerfile
+    dockerContext: .
+    plan: free          # upgrade to starter ($7/mo) for WebSocket keep-alive
+    region: oregon
+    healthCheckPath: /api/health
+
+    # Auto-deploy when you push to main
+    branch: main
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 4000
+
+      # WebSocket URL — Render gives you an https:// domain; WSS uses the same host
+      # Fill in your Render domain after first deploy, e.g. https://interview-caption-assistant.onrender.com
+      - key: PUBLIC_SERVER_URL
+        sync: false         # set manually in Render dashboard
+
+      - key: PUBLIC_WEBSOCKET_URL
+        sync: false         # set manually: wss://interview-caption-assistant.onrender.com/ws
+
+      # Required secrets — set these in Render dashboard (Environment tab)
+      - key: SESSION_TOKEN_SECRET
+        generateValue: true   # Render auto-generates a secure random value
+
+      - key: TRANSCRIPTION_PROVIDER
+        value: groq
+
+      - key: TRANSCRIPTION_API_KEY
+        sync: false           # your Groq API key
+
+      - key: AI_PROVIDER
+        value: groq
+
+      - key: GROQ_API_KEY
+        sync: false           # your Groq API key (same key works for both)
+
+      - key: ANTHROPIC_API_KEY
+        sync: false           # optional — only needed if AI_PROVIDER=claude
+
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-4-5-20251001
+
+      - key: TRANSLATION_PROVIDER
+        value: mock           # change to openai if you want live translation
