@@ -12,6 +12,8 @@ RUN npm ci --workspace=packages/shared --workspace=apps/server
 # ── Build ────────────────────────────────────────────────────────────────────
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
+# Root package.json is required for npm workspaces commands
+COPY package.json package-lock.json* ./
 COPY packages/shared ./packages/shared
 COPY apps/server ./apps/server
 COPY tsconfig.base.json ./
