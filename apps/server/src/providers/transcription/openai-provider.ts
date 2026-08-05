@@ -56,7 +56,7 @@ async function transcribeWithFetch(
   const wav = pcmToWav(pcm);
 
   // Use File (extends Blob, carries filename) — required for OpenAI multipart upload
-  const file = new File([wav], 'audio.wav', { type: 'audio/wav' });
+  const file = new File([new Uint8Array(wav)], 'audio.wav', { type: 'audio/wav' });
   const form = new FormData();
   form.append('file', file);
   form.append('model', 'whisper-1');

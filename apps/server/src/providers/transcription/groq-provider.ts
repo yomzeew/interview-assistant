@@ -60,7 +60,8 @@ function pcmToWav(pcm: Buffer, sampleRate = 16000, channels = 1): Buffer {
 
 async function transcribeWithGroq(apiKey: string, pcm: Buffer, language: string): Promise<string> {
   const wav = pcmToWav(pcm);
-  const file = new File([wav], 'audio.wav', { type: 'audio/wav' });
+  // Convert Buffer to Uint8Array so it's a valid BlobPart across all TS targets
+  const file = new File([new Uint8Array(wav)], 'audio.wav', { type: 'audio/wav' });
   const form = new FormData();
   form.append('file', file);
   form.append('model', GROQ_MODEL);
