@@ -10,6 +10,10 @@ export interface FinalTranscriptEvent {
   startedAt: number;
   endedAt: number;
   isQuestion: boolean;
+  /** Confidence score [0, 1] from question detector */
+  confidence: number;
+  /** Speaker label assigned by diarization (e.g. "Speaker 1") */
+  speakerLabel?: string;
 }
 
 export interface TranscriptionSession {

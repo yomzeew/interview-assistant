@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   skillsRequired: '',
   cvText: '',
   interviewData: '',
+  questionConfidenceThreshold: 0.65,
+  excludedSpeaker: '',
 };
 
 export const settingsRepo = {

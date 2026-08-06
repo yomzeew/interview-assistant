@@ -152,7 +152,7 @@ class OpenAITranscriptionSession implements TranscriptionSession {
       this.startedAt = endedAt;
 
       this.partialCb?.({ id, text, startedAt });
-      this.finalCb?.({ id, text, startedAt, endedAt, isQuestion: detectQuestion(text) });
+      this.finalCb?.({ id, text, startedAt, endedAt, ...detectQuestion(text) });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const elapsed = Date.now() - t0;

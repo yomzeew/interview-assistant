@@ -56,7 +56,10 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-gray-400">
-          {formatTimestamp(entry.startedAt)} — {entry.speakerLabel ?? 'Meeting audio'}
+          {formatTimestamp(entry.startedAt)}
+          {entry.speakerLabel && entry.speakerLabel !== 'Meeting audio'
+            ? <span className="ml-1 text-purple-500 font-medium">{entry.speakerLabel}</span>
+            : <span className="ml-1">— Meeting audio</span>}
         </span>
         <div className="flex items-center gap-1.5">
           {entry.isQuestion && (
@@ -65,6 +68,27 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
           {entry.isPartial && <span className="text-xs text-gray-400 italic">…</span>}
         </div>
       </div>
+
+      {/* Confidence meter — shown only on finalised questions */}
+      {entry.isQuestion && !entry.isPartial && entry.confidence !== undefined && (
+        <div className="flex items-center gap-2 mb-1">
+          <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                entry.confidence >= 0.85 ? 'bg-green-400' :
+                entry.confidence >= 0.70 ? 'bg-yellow-400' : 'bg-orange-400'
+              }`}
+              style={{ width: `${Math.round(entry.confidence * 100)}%` }}
+            />
+          </div>
+          <span className={`text-[10px] font-medium tabular-nums ${
+            entry.confidence >= 0.85 ? 'text-green-600' :
+            entry.confidence >= 0.70 ? 'text-yellow-600' : 'text-orange-500'
+          }`}>
+            {Math.round(entry.confidence * 100)}%
+          </span>
+        </div>
+      )}
 
       {/* Transcript text — rendered word by word as partial updates arrive */}
       <p className={`${sizeClass} text-gray-900 leading-snug font-medium`}>{entry.text}</p>

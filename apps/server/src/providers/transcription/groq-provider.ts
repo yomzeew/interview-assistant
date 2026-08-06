@@ -6,6 +6,7 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import { detectQuestion } from './question-detector.js';
+import { SpeakerTracker } from './speaker-tracker.js';
 import { logger } from '../../utils/logger.js';
 import type {
   TranscriptionProvider,
@@ -99,6 +100,9 @@ class GroqTranscriptionSession implements TranscriptionSession {
   private closed = false;
   private flushing = false;
   private language: string;
+  private speakerTracker = new SpeakerTracker();
+  /** PCM of the current utterance (kept in parallel so we can fingerprint even after concat) */
+  private currentPcm: Buffer[] = [];
 
   constructor(private readonly apiKey: string, opts: { language?: string; sampleRate: number }) {
     this.language = opts.language ?? 'en';
@@ -106,7 +110,10 @@ class GroqTranscriptionSession implements TranscriptionSession {
   }
 
   async sendAudio(chunk: Buffer): Promise<void> {
-    if (!this.closed) this.chunks.push(chunk);
+    if (!this.closed) {
+      this.chunks.push(chunk);
+      this.currentPcm.push(chunk);
+    }
   }
 
   onPartial(cb: (e: PartialTranscriptEvent) => void): void { this.partialCb = cb; }
@@ -116,11 +123,14 @@ class GroqTranscriptionSession implements TranscriptionSession {
     if (this.closed || this.chunks.length === 0 || this.flushing) return;
 
     const pcm = Buffer.concat(this.chunks);
+    const utterancePcm = Buffer.concat(this.currentPcm);
     this.chunks = [];
+    this.currentPcm = [];
 
     if (pcm.length < MIN_BYTES_TO_FLUSH) {
       // Buffer until we have at least 1 second
       this.chunks.push(pcm);
+      this.currentPcm.push(pcm);
       return;
     }
 
@@ -151,8 +161,11 @@ class GroqTranscriptionSession implements TranscriptionSession {
       this.currentId = uuidv4();
       this.startedAt = endedAt;
 
+      const { isQuestion, confidence } = detectQuestion(text);
+      const speakerLabel = this.speakerTracker.identify(utterancePcm);
+
       this.partialCb?.({ id, text, startedAt });
-      this.finalCb?.({ id, text, startedAt, endedAt, isQuestion: detectQuestion(text) });
+      this.finalCb?.({ id, text, startedAt, endedAt, isQuestion, confidence, speakerLabel });
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const elapsed = Date.now() - t0;
@@ -172,6 +185,8 @@ class GroqTranscriptionSession implements TranscriptionSession {
     this.flushing = false;
     await this.flush();
     this.chunks = [];
+    this.currentPcm = [];
+    this.speakerTracker.reset();
   }
 }
 

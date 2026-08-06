@@ -26,6 +26,10 @@ export interface SessionState {
   error: string | null;
 }
 
+/** Loaded once at session start; controls question gating client-side */
+let _confidenceThreshold = 0.65;
+let _excludedSpeaker = '';
+
 export function useSession() {
   const [state, setState] = useState<SessionState>({
     connectionState: 'idle',
@@ -76,22 +80,34 @@ export function useSession() {
         });
         break;
 
-      case 'transcript.final':
+      case 'transcript.final': {
+        const speakerLabel = event.speakerLabel ?? 'Meeting audio';
+        const speakerExcluded = _excludedSpeaker !== '' && speakerLabel === _excludedSpeaker;
+        const isQuestion = event.isQuestion
+          && (event.confidence ?? 0) >= _confidenceThreshold
+          && !speakerExcluded;
         setTranscripts((prev) => {
           const entry: TranscriptEntry = {
             id: event.id, text: event.text, startedAt: event.startedAt,
-            endedAt: event.endedAt, isPartial: false, isQuestion: event.isQuestion,
-            speakerLabel: 'Meeting audio',
+            endedAt: event.endedAt, isPartial: false, isQuestion,
+            confidence: event.confidence,
+            speakerLabel,
           };
           const exists = prev.some((t) => t.id === event.id);
           return exists ? prev.map((t) => t.id === event.id ? entry : t) : [...prev, entry];
         });
         break;
+      }
 
       case 'translation.final':
         setTranscripts((prev) => prev.map((t) =>
           t.id === event.transcriptId
-            ? { ...t, translation: { transcriptId: event.transcriptId, text: event.text, language: event.language, detectedLanguage: event.detectedLanguage } }
+            ? { ...t, translation: {
+                transcriptId: event.transcriptId,
+                text: event.text,
+                language: event.language,
+                ...(event.detectedLanguage !== undefined && { detectedLanguage: event.detectedLanguage }),
+              } }
             : t
         ));
         break;
@@ -125,6 +141,8 @@ export function useSession() {
       if (!tab?.id) throw new Error('No active tab found');
 
       const settings = await settingsRepo.get();
+      _confidenceThreshold = settings.questionConfidenceThreshold ?? 0.65;
+      _excludedSpeaker = settings.excludedSpeaker ?? '';
 
       const res = await fetch(`${settings.backendUrl}/api/sessions`, {
         method: 'POST',
@@ -151,7 +169,8 @@ export function useSession() {
 
       const sessionInfo: SessionInfo = {
         sessionId, startTime: Date.now(), sourceTabId: tab.id,
-        meetingTitle: tab.title, spokenLanguage: settings.spokenLanguage,
+        ...(tab.title !== undefined && { meetingTitle: tab.title }),
+        spokenLanguage: settings.spokenLanguage,
         targetLanguage: settings.targetLanguage, connectionState: 'connecting',
       };
       await sessionsRepo.save(sessionInfo);

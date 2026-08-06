@@ -340,6 +340,60 @@ export default function SettingsTab() {
         </div>
       </section>
 
+      <section>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🎙️ Question Detection</h2>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Confidence threshold —{' '}
+              <span className="font-normal text-gray-400">
+                only flag a segment as a question when the detector is this confident
+              </span>
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={0.55}
+                max={0.95}
+                step={0.05}
+                value={settings.questionConfidenceThreshold ?? 0.65}
+                onChange={(e) => update({ questionConfidenceThreshold: parseFloat(e.target.value) })}
+                className="flex-1"
+              />
+              <span className="text-xs font-medium w-10 text-right">
+                {Math.round((settings.questionConfidenceThreshold ?? 0.65) * 100)}%
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+              <span>More questions</span>
+              <span>Fewer, higher confidence</span>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              65% = captures behavioral &amp; indirect questions. 80% = strong interrogatives only. 95% = question mark required.
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Exclude speaker from question detection
+              <span className="ml-1 font-normal text-gray-400">(panel interviews — ignore yourself echoing back)</span>
+            </label>
+            <select
+              value={settings.excludedSpeaker ?? ''}
+              onChange={(e) => update({ excludedSpeaker: e.target.value })}
+              className="w-full text-xs border border-gray-200 rounded p-1.5"
+            >
+              <option value="">No exclusion (default)</option>
+              <option value="Speaker 1">Speaker 1</option>
+              <option value="Speaker 2">Speaker 2</option>
+              <option value="Speaker 3">Speaker 3</option>
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Speaker labels appear on transcript cards during a live session. Set this to whichever label matches your own voice.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <div className={`text-center text-xs py-1 transition-opacity duration-500 ${saved ? 'text-green-600 opacity-100' : 'opacity-0'}`}>
         ✓ Settings saved
       </div>

@@ -92,8 +92,8 @@ export async function handleWebSocketConnection(
         }
       }
 
-      // Live answer for detected questions
-      if (event.isQuestion && liveAnswerProvider) {
+      // Live answer for high-confidence questions (≥0.65 threshold)
+      if (event.isQuestion && event.confidence >= 0.65 && liveAnswerProvider) {
         try {
           const sess = sessionStore.get(sessionId);
           const result = await liveAnswerProvider.answerQuestion({

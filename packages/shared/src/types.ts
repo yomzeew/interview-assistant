@@ -42,6 +42,9 @@ export interface TranscriptSegment {
   endedAt?: number;
   isPartial: boolean;
   isQuestion: boolean;
+  /** Confidence score [0, 1] from question detector */
+  confidence?: number;
+  /** Speaker label from diarization, e.g. "Speaker 1" */
   speakerLabel?: string;
 }
 
@@ -95,6 +98,17 @@ export interface AppSettings {
   cvText: string;
   /** Interview preparation notes / example Q&A uploaded as .txt */
   interviewData: string;
+  /**
+   * Minimum confidence [0–1] for a transcript to be treated as a question.
+   * Segments below this score are shown without AI answers.
+   * Default 0.65 (tier 4 behavioral patterns).
+   */
+  questionConfidenceThreshold: number;
+  /**
+   * Speaker label to exclude from question detection (e.g. "Speaker 2" if that
+   * is the candidate's own voice echoing back in a panel). Empty = no filter.
+   */
+  excludedSpeaker: string;
 }
 
 export interface GeneratePracticeAnswerInput {

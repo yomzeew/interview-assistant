@@ -47,7 +47,7 @@ class MockTranscriptionSession implements TranscriptionSession {
           text: phrase,
           startedAt: this.startedAt,
           endedAt: Date.now(),
-          isQuestion: detectQuestion(phrase),
+          ...detectQuestion(phrase),
         });
         this.currentId = uuidv4();
         this.startedAt = Date.now();

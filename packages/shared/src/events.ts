@@ -15,6 +15,10 @@ export type ServerEvent =
       startedAt: number;
       endedAt: number;
       isQuestion: boolean;
+      /** Confidence score [0, 1] from the question detector */
+      confidence: number;
+      /** Speaker label from diarization, e.g. "Speaker 1" */
+      speakerLabel?: string;
     }
   | {
       type: 'translation.final';
