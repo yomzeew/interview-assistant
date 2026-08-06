@@ -15,4 +15,9 @@ export interface ActiveSession {
   skillsRequired?: string;
   cvText?: string;
   interviewData?: string;
+  dislikedAnswerPatterns?: string;
+  /** Per-session provider override — overrides TRANSCRIPTION_PROVIDER env var */
+  transcriptionProvider?: 'groq' | 'assemblyai';
+  /** Per-session AI provider override — overrides AI_PROVIDER env var */
+  aiProvider?: 'groq' | 'claude';
 }

@@ -99,6 +99,17 @@ export interface AppSettings {
   /** Interview preparation notes / example Q&A uploaded as .txt */
   interviewData: string;
   /**
+   * AI provider for live answers and session summaries.
+   * 'server-default' uses whatever AI_PROVIDER env var says.
+   */
+  aiProvider: 'server-default' | 'groq' | 'claude';
+  /**
+   * Transcription provider for this user's sessions.
+   * 'server-default' uses whatever TRANSCRIPTION_PROVIDER env var says.
+   * 'groq' / 'assemblyai' override that choice per session.
+   */
+  transcriptionProvider: 'server-default' | 'groq' | 'assemblyai';
+  /**
    * Minimum confidence [0–1] for a transcript to be treated as a question.
    * Segments below this score are shown without AI answers.
    * Default 0.65 (tier 4 behavioral patterns).

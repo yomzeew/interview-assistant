@@ -49,5 +49,8 @@ services:
       - key: ANTHROPIC_MODEL
         value: claude-haiku-4-5-20251001
 
+      - key: ASSEMBLYAI_API_KEY
+        sync: false           # optional — set to switch TRANSCRIPTION_PROVIDER=assemblyai for real speaker diarization
+
       - key: TRANSLATION_PROVIDER
         value: mock           # change to openai if you want live translation

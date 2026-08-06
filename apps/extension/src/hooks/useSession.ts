@@ -4,6 +4,7 @@ import type { ServerEvent } from '@ica/shared';
 import type { TranscriptEntry } from '../types/index.js';
 import { settingsRepo } from '../storage/settings-repo.js';
 import { sessionsRepo } from '../storage/sessions-repo.js';
+import { answerHistoryRepo, answerRatingsRepo } from '../storage/answer-ratings-repo.js';
 
 const SESSION_STORAGE_KEY = 'ica_transcripts';
 
@@ -118,6 +119,13 @@ export function useSession() {
             ? { ...t, liveAnswer: { transcriptId: event.transcriptId, question: event.question, answer: event.answer, keyPoints: event.keyPoints } }
             : t
         ));
+        // Record in answer history (best-effort)
+        void answerHistoryRepo.record({
+          sessionId: sessionIdRef.current ?? 'unknown',
+          question: event.question,
+          answer: event.answer,
+          keyPoints: event.keyPoints,
+        });
         break;
 
       case 'session.error':
@@ -144,6 +152,12 @@ export function useSession() {
       _confidenceThreshold = settings.questionConfidenceThreshold ?? 0.65;
       _excludedSpeaker = settings.excludedSpeaker ?? '';
 
+      // Build disliked answer patterns from thumbs-down history
+      const badAnswers = await answerRatingsRepo.getRecentBadAnswers(5);
+      const dislikedAnswerPatterns = badAnswers.length > 0
+        ? badAnswers.map((r, i) => `${i + 1}. Q: "${r.question.slice(0, 80)}" — disliked answer style: "${r.answer.slice(0, 120)}"`).join('\n')
+        : undefined;
+
       const res = await fetch(`${settings.backendUrl}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,6 +170,13 @@ export function useSession() {
           skillsRequired: settings.skillsRequired || undefined,
           cvText: settings.cvText || undefined,
           interviewData: settings.interviewData || undefined,
+          dislikedAnswerPatterns,
+          transcriptionProvider: settings.transcriptionProvider !== 'server-default'
+            ? settings.transcriptionProvider
+            : undefined,
+          aiProvider: settings.aiProvider !== 'server-default'
+            ? settings.aiProvider
+            : undefined,
         }),
       });
       if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
@@ -210,21 +231,58 @@ export function useSession() {
     setState((s) => ({ ...s, connectionState: 'connected' }));
   }, []);
 
-  const stop = useCallback(async () => {
+  const stop = useCallback(async (): Promise<string | null> => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (listenerRef.current) {
       chrome.runtime.onMessage.removeListener(listenerRef.current);
       listenerRef.current = null;
     }
     await chrome.runtime.sendMessage({ type: 'bg.stopCapture' });
+
+    let summaryMarkdown: string | null = null;
     if (sessionIdRef.current) {
       const settings = await settingsRepo.get();
-      await fetch(`${settings.backendUrl}/api/sessions/${sessionIdRef.current}`, { method: 'DELETE' }).catch(() => null);
+      const sessionId = sessionIdRef.current;
+
+      // Snapshot current transcripts before clearing state
+      const currentTranscripts = await loadTranscriptsFromSession();
+      const summaryPayload = currentTranscripts
+        .filter((t) => !t.isPartial)
+        .map((t) => ({
+          text: t.text,
+          isQuestion: t.isQuestion,
+          speakerLabel: t.speakerLabel,
+          answer: t.liveAnswer?.answer,
+          keyPoints: t.liveAnswer?.keyPoints,
+        }));
+
+      // Generate summary before deleting session (session context still available)
+      try {
+        const summaryRes = await fetch(
+          `${settings.backendUrl}/api/sessions/${sessionId}/summary`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              durationSeconds: state.elapsedSeconds,
+              transcripts: summaryPayload,
+            }),
+          }
+        );
+        if (summaryRes.ok) {
+          const data = await summaryRes.json() as { markdown?: string };
+          summaryMarkdown = data.markdown ?? null;
+        }
+      } catch { /* summary is best-effort */ }
+
+      await fetch(`${settings.backendUrl}/api/sessions/${sessionId}`, { method: 'DELETE' }).catch(() => null);
     }
+
     void chrome.storage.session.remove(SESSION_STORAGE_KEY);
     setState((s) => ({ ...s, connectionState: 'idle', sessionId: null, elapsedSeconds: 0, transcripts: [] }));
     sessionIdRef.current = null;
-  }, []);
+    return summaryMarkdown;
+  }, [state.elapsedSeconds]);
 
   const retryAnswer = useCallback(async (transcriptId: string, question: string) => {
     const sessionId = sessionIdRef.current;

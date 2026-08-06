@@ -341,6 +341,55 @@ export default function SettingsTab() {
       </section>
 
       <section>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🤖 AI Provider</h2>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Provider
+              <span className="ml-1 font-normal text-gray-400">(overrides server default)</span>
+            </label>
+            <select
+              value={settings.aiProvider ?? 'server-default'}
+              onChange={(e) => update({ aiProvider: e.target.value as AppSettings['aiProvider'] })}
+              className="w-full text-xs border border-gray-200 rounded p-1.5"
+            >
+              <option value="server-default">Server default (use env var)</option>
+              <option value="groq">Groq LLaMA 3 — free, fast (requires GROQ_API_KEY on server)</option>
+              <option value="claude">Claude — highest quality (requires ANTHROPIC_API_KEY on server)</option>
+            </select>
+          </div>
+          <p className="text-[10px] text-gray-400">
+            When set, every answer and summary in this session uses this provider, regardless of server configuration.
+            Falls back to server default if the chosen provider isn't configured on the server.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🎙️ Transcription Provider</h2>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Provider
+              <span className="ml-1 font-normal text-gray-400">(overrides server default)</span>
+            </label>
+            <select
+              value={settings.transcriptionProvider ?? 'server-default'}
+              onChange={(e) => update({ transcriptionProvider: e.target.value as AppSettings['transcriptionProvider'] })}
+              className="w-full text-xs border border-gray-200 rounded p-1.5"
+            >
+              <option value="server-default">Server default (use env var)</option>
+              <option value="groq">Groq Whisper — fast, free, good accuracy</option>
+              <option value="assemblyai">AssemblyAI — real-time, native speaker labels (auto-falls back to Groq)</option>
+            </select>
+          </div>
+          <p className="text-[10px] text-gray-400">
+            AssemblyAI requires <code className="bg-gray-100 px-0.5 rounded">ASSEMBLYAI_API_KEY</code> on the server. If it expires mid-session, Groq takes over automatically.
+          </p>
+        </div>
+      </section>
+
+      <section>
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🎙️ Question Detection</h2>
         <div className="space-y-3">
           <div>

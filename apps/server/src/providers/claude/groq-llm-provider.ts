@@ -4,7 +4,7 @@
  * Get a free key at https://console.groq.com
  */
 import { logger } from '../../utils/logger.js';
-import type { PracticeCoachProvider, LiveAnswerProvider } from './types.js';
+import type { PracticeCoachProvider, LiveAnswerProvider, SummaryProvider, SessionSummaryInput } from './types.js';
 import type {
   GeneratePracticeAnswerInput,
   GeneratePracticeAnswerOutput,
@@ -70,7 +70,7 @@ async function chat(
   return json.choices[0]?.message?.content ?? '';
 }
 
-export class GroqLLMProvider implements LiveAnswerProvider, PracticeCoachProvider {
+export class GroqLLMProvider implements LiveAnswerProvider, PracticeCoachProvider, SummaryProvider {
   constructor(private readonly apiKey: string) {}
 
   // ── Live Captions ────────────────────────────────────────────────────────────
@@ -84,8 +84,12 @@ export class GroqLLMProvider implements LiveAnswerProvider, PracticeCoachProvide
     skillsRequired?: string;
     cvText?: string;
     interviewData?: string;
+    dislikedAnswerPatterns?: string;
   }): Promise<LiveAnswerResult> {
     const contextBlock = buildContext(input);
+    const dislikedBlock = input.dislikedAnswerPatterns
+      ? `\n\nCANDIDATE FEEDBACK — the candidate rated these answer styles negatively. Avoid them:\n${input.dislikedAnswerPatterns}`
+      : '';
 
     const system = `You are a real-time interview coach helping a candidate answer questions live.
 
@@ -97,7 +101,7 @@ RULES — follow every one strictly:
 5. Write in first person as if the candidate is speaking ("I led…", "We built…", "My team…").
 6. End with a concrete Result/impact wherever possible (numbers, percentages, outcomes).
 
-${contextBlock}
+${contextBlock}${dislikedBlock}
 
 Return ONLY valid JSON — no markdown, no explanation:
 { "answer": "STAR-structured answer the candidate can speak aloud", "keyPoints": ["S: situation", "T: task", "A: action", "R: result"] }`;
@@ -179,5 +183,47 @@ Return ONLY a JSON object: { "feedback": "string", "strengths": ["string"], "imp
       512
     );
     return safeJson<string[]>(raw, []);
+  }
+
+  async generateSessionSummary(input: SessionSummaryInput): Promise<string> {
+    const minutes = Math.round(input.durationSeconds / 60);
+    const qas = input.transcripts
+      .filter((t) => t.isQuestion && t.answer)
+      .map((t, i) => `### Q${i + 1}: ${t.text}\n**Answer given:** ${t.answer}${t.rating ? `\n*(Candidate rated: ${t.rating === 'good' ? '👍' : '👎'})*` : ''}`)
+      .join('\n\n');
+
+    const allQuestions = input.transcripts
+      .filter((t) => t.isQuestion)
+      .map((t) => `- ${t.text}`)
+      .join('\n');
+
+    const system = `You are an expert interview coach. Generate a structured post-interview summary in Markdown.
+
+The summary must include these sections exactly:
+1. **Session Overview** — duration, number of questions, overall impression
+2. **Questions Asked** — bullet list of every question detected
+3. **Detailed Q&A Review** — for each question: what was said, key STAR points used, what was strong
+4. **Topics Covered** — thematic grouping of the interview areas
+5. **Gaps & Preparation Priorities** — specific areas to prepare for next time, ranked by importance
+6. **Suggested Practice Questions** — 3-5 follow-up questions the interviewer might ask next round
+
+Be specific, actionable, and honest. Use the candidate's actual answers to identify strengths and weaknesses.`;
+
+    const user = `Interview duration: ${minutes} minutes
+${input.jobDescription ? `Job: ${input.jobDescription.slice(0, 500)}` : ''}
+${input.userProfile ? `Candidate: ${input.userProfile}` : ''}
+
+All questions detected:
+${allQuestions}
+
+Questions with answers:
+${qas || '(No AI answers were generated this session)'}`;
+
+    try {
+      return await chat(this.apiKey, system, user, 2000);
+    } catch (err) {
+      logger.error({ err }, 'Groq: generateSessionSummary failed');
+      return `# Interview Summary\n\n*Summary generation failed. Here are the questions that were detected:*\n\n${allQuestions}`;
+    }
   }
 }

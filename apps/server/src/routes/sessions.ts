@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { sessionStore } from '../services/session-store.js';
 import { createWebSocketToken } from '../utils/token.js';
-import { createLiveAnswerProvider } from '../providers/claude/index.js';
+import { createLiveAnswerProvider, createSummaryProvider } from '../providers/claude/index.js';
+import type { SessionSummaryInput } from '../providers/claude/types.js';
 import { logger } from '../utils/logger.js';
 
 export const sessionsRouter = Router();
@@ -18,6 +19,9 @@ const CreateSessionBody = z.object({
   skillsRequired: z.string().optional(),
   cvText: z.string().optional(),
   interviewData: z.string().optional(),
+  dislikedAnswerPatterns: z.string().optional(),
+  transcriptionProvider: z.enum(['groq', 'assemblyai']).optional(),
+  aiProvider: z.enum(['groq', 'claude']).optional(),
 });
 
 sessionsRouter.post('/', (req, res) => {
@@ -43,6 +47,9 @@ sessionsRouter.post('/', (req, res) => {
     skillsRequired: result.data.skillsRequired,
     cvText: result.data.cvText,
     interviewData: result.data.interviewData,
+    dislikedAnswerPatterns: result.data.dislikedAnswerPatterns,
+    transcriptionProvider: result.data.transcriptionProvider,
+    aiProvider: result.data.aiProvider,
   });
 
   logger.info({ sessionId }, 'Session created');
@@ -72,7 +79,7 @@ sessionsRouter.post('/:sessionId/retry-answer', async (req, res) => {
   }
 
   try {
-    const provider = createLiveAnswerProvider();
+    const provider = createLiveAnswerProvider(sess.aiProvider);
     const result = await provider.answerQuestion({
       transcriptId,
       question,
@@ -88,6 +95,37 @@ sessionsRouter.post('/:sessionId/retry-answer', async (req, res) => {
   } catch (err) {
     logger.error({ err }, 'Retry answer failed');
     res.status(500).json({ error: 'AI unavailable' });
+  }
+});
+
+// POST /api/sessions/:sessionId/summary
+// Generates an AI post-interview summary. Call this BEFORE DELETE so the session context is still available.
+sessionsRouter.post('/:sessionId/summary', async (req, res) => {
+  const { sessionId } = req.params;
+  const sess = sessionStore.get(sessionId ?? '');
+  if (!sess) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  const body = req.body as {
+    durationSeconds?: number;
+    transcripts?: SessionSummaryInput['transcripts'];
+  };
+
+  try {
+    const provider = createSummaryProvider(sess.aiProvider);
+    const markdown = await provider.generateSessionSummary({
+      durationSeconds: body.durationSeconds ?? 0,
+      jobDescription: sess.jobDescription,
+      userProfile: sess.userProfile,
+      transcripts: body.transcripts ?? [],
+    });
+    logger.info({ sessionId }, 'Session summary generated');
+    res.json({ markdown });
+  } catch (err) {
+    logger.error({ err }, 'Session summary failed');
+    res.status(500).json({ error: 'Summary generation failed' });
   }
 });
 

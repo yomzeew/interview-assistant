@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Interview Caption Assistant",
-  "version": "1.0.0",
-  "description": "Real-time captions, translation, and interview preparation for browser-based meetings.",
+  "version": "1.1.0",
+  "description": "Live AI interview coach for Google Meet, Teams & Zoom. Real-time captions, STAR-method answers from your CV, speaker detection, and post-session summaries.",
   "permissions": [
     "tabCapture",
     "offscreen",

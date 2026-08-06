@@ -43,21 +43,28 @@ export async function handleWebSocketConnection(
   sessionStore.update(sessionId, { ws });
   send(ws, { type: 'session.ready', sessionId });
 
+  const sess0 = sessionStore.get(sessionId);
   const transcriptionProvider = createTranscriptionProvider();
   const translationProvider = createTranslationProvider();
 
   let liveAnswerProvider: ReturnType<typeof createLiveAnswerProvider> | null = null;
   try {
-    liveAnswerProvider = createLiveAnswerProvider();
+    // Use per-session AI provider override if the user picked one in Settings
+    liveAnswerProvider = createLiveAnswerProvider(sess0?.aiProvider);
   } catch {
-    logger.warn('Live answer provider unavailable (no ANTHROPIC_API_KEY)');
+    logger.warn('Live answer provider unavailable (no AI keys configured)');
   }
 
   let transcriptionSession: TranscriptionSession | null = null;
 
   async function startTranscription(): Promise<void> {
     const sess = sessionStore.get(sessionId);
-    transcriptionSession = await transcriptionProvider.createSession({
+    // Use the per-session override if the user picked one in Settings
+    const providerOverride = sess?.transcriptionProvider;
+    const provider = providerOverride
+      ? createTranscriptionProvider(providerOverride)
+      : transcriptionProvider;
+    transcriptionSession = await provider.createSession({
       language: sess?.spokenLanguage,
       sampleRate: 16000,
     });
@@ -105,6 +112,7 @@ export async function handleWebSocketConnection(
             skillsRequired: sess?.skillsRequired,
             cvText: sess?.cvText,
             interviewData: sess?.interviewData,
+            dislikedAnswerPatterns: sess?.dislikedAnswerPatterns,
           });
           send(ws, {
             type: 'live.answer',

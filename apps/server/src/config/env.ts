@@ -10,8 +10,9 @@ const EnvSchema = z.object({
   PUBLIC_SERVER_URL: z.string().url().default('http://localhost:4000'),
   PUBLIC_WEBSOCKET_URL: z.string().default('ws://localhost:4000/ws'),
 
-  TRANSCRIPTION_PROVIDER: z.enum(['mock', 'openai', 'groq']).default('mock'),
+  TRANSCRIPTION_PROVIDER: z.enum(['mock', 'openai', 'groq', 'assemblyai']).default('mock'),
   TRANSCRIPTION_API_KEY: z.string().default(''),
+  ASSEMBLYAI_API_KEY: z.string().default(''),
 
   TRANSLATION_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
   TRANSLATION_API_KEY: z.string().default(''),

@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
-import type { PracticeCoachProvider, LiveAnswerProvider } from './types.js';
+import type { PracticeCoachProvider, LiveAnswerProvider, SummaryProvider, SessionSummaryInput } from './types.js';
 import type {
   GeneratePracticeAnswerInput,
   GeneratePracticeAnswerOutput,
@@ -33,7 +33,7 @@ function safeJson<T>(text: string, fallback: T): T {
   }
 }
 
-export class ClaudeProvider implements PracticeCoachProvider, LiveAnswerProvider {
+export class ClaudeProvider implements PracticeCoachProvider, LiveAnswerProvider, SummaryProvider {
   private readonly client: Anthropic;
 
   constructor() {
@@ -113,6 +113,40 @@ Candidate's Answer: ${input.answer}`;
       improvements: [],
       score: 5,
     });
+  }
+
+  async generateSessionSummary(input: SessionSummaryInput): Promise<string> {
+    const minutes = Math.round(input.durationSeconds / 60);
+    const qas = input.transcripts
+      .filter((t) => t.isQuestion && t.answer)
+      .map((t, i) => `### Q${i + 1}: ${t.text}\n**Answer:** ${t.answer}${t.rating ? `\n*(Rated: ${t.rating === 'good' ? '👍' : '👎'})*` : ''}`)
+      .join('\n\n');
+    const allQuestions = input.transcripts.filter((t) => t.isQuestion).map((t) => `- ${t.text}`).join('\n');
+
+    const systemPrompt = `You are an expert interview coach. Generate a structured post-interview summary in Markdown with these exact sections:
+1. **Session Overview** — duration, question count, overall impression
+2. **Questions Asked** — bullet list
+3. **Detailed Q&A Review** — per question: what was strong, what to improve
+4. **Topics Covered** — thematic groupings
+5. **Gaps & Preparation Priorities** — specific areas ranked by importance
+6. **Suggested Practice Questions** — 3-5 questions for next round
+
+Be specific, actionable, and honest based on the actual answers provided.`;
+
+    const userMsg = `Duration: ${minutes} min\n${input.jobDescription ? `Job: ${input.jobDescription.slice(0, 500)}\n` : ''}${input.userProfile ? `Candidate: ${input.userProfile}\n` : ''}\nQuestions:\n${allQuestions}\n\nQ&A:\n${qas || '(No AI answers this session)'}`;
+
+    try {
+      const response = await this.client.messages.create({
+        model: env.ANTHROPIC_MODEL,
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }],
+      });
+      return response.content[0]?.type === 'text' ? response.content[0].text : '';
+    } catch (err) {
+      logger.error({ err }, 'Claude: generateSessionSummary failed');
+      return `# Interview Summary\n\n*Summary generation failed.*\n\n${allQuestions}`;
+    }
   }
 
   async generateFollowUps(input: { question: string; answer: string; role: string }): Promise<string[]> {

@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   skillsRequired: '',
   cvText: '',
   interviewData: '',
+  aiProvider: 'server-default' as const,
+  transcriptionProvider: 'server-default' as const,
   questionConfidenceThreshold: 0.65,
   excludedSpeaker: '',
 };

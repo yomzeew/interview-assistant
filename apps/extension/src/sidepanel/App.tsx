@@ -27,6 +27,7 @@ export default function App() {
   const [practiceQuestion, setPracticeQuestion] = useState('');
   const [practiceKey, setPracticeKey] = useState(0);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [summaryMarkdown, setSummaryMarkdown] = useState<string | null>(null);
   const { state, start, pause, resume, stop, retryAnswer } = useSession();
   const pip = usePiP();
 
@@ -94,7 +95,10 @@ export default function App() {
         onStart={() => void start()}
         onPause={() => void pause()}
         onResume={() => void resume()}
-        onStop={() => void stop()}
+        onStop={async () => {
+          const md = await stop();
+          if (md) setSummaryMarkdown(md);
+        }}
         onPopOut={() => void popOut()}
         onPiP={() => pip.pipOpen ? pip.close() : void pip.open()}
         pipOpen={pip.pipOpen}
@@ -125,6 +129,41 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {/* Session summary modal */}
+      {summaryMarkdown && (
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50 p-3">
+          <div className="bg-white rounded-xl w-full shadow-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm text-gray-800">📋 Interview Summary Ready</h2>
+              <button onClick={() => setSummaryMarkdown(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            </div>
+            <p className="text-xs text-gray-500">Your AI-generated post-interview review is ready to download.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const blob = new Blob([summaryMarkdown], { type: 'text/markdown' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `interview-summary-${new Date().toISOString().slice(0,10)}.md`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex-1 bg-accent text-white text-xs py-2 rounded-lg font-medium hover:opacity-90"
+              >
+                ⬇️ Download .md
+              </button>
+              <button
+                onClick={() => void navigator.clipboard.writeText(summaryMarkdown).then(() => setSummaryMarkdown(null))}
+                className="flex-1 border border-gray-200 text-gray-700 text-xs py-2 rounded-lg font-medium hover:bg-gray-50"
+              >
+                📋 Copy to clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden" role="tabpanel">
         {activeTab === 'captions' && (

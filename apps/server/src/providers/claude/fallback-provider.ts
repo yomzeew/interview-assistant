@@ -4,7 +4,7 @@
  * for the rest of the session and logs a single warning.
  */
 import { logger } from '../../utils/logger.js';
-import type { PracticeCoachProvider, LiveAnswerProvider } from './types.js';
+import type { PracticeCoachProvider, LiveAnswerProvider, SummaryProvider, SessionSummaryInput } from './types.js';
 import type {
   GeneratePracticeAnswerInput,
   GeneratePracticeAnswerOutput,
@@ -13,7 +13,7 @@ import type {
   LiveAnswerResult,
 } from '@ica/shared';
 
-type FullProvider = LiveAnswerProvider & PracticeCoachProvider;
+type FullProvider = LiveAnswerProvider & PracticeCoachProvider & SummaryProvider;
 
 /** Returns true when the error is a billing/credit exhaustion from Anthropic */
 function isCreditError(err: unknown): boolean {
@@ -66,5 +66,9 @@ export class FallbackProvider implements FullProvider {
 
   generateFollowUps(input: { question: string; answer: string; role: string }): Promise<string[]> {
     return this.tryWithFallback((p) => p.generateFollowUps(input));
+  }
+
+  generateSessionSummary(input: SessionSummaryInput): Promise<string> {
+    return this.tryWithFallback((p) => p.generateSessionSummary(input));
   }
 }

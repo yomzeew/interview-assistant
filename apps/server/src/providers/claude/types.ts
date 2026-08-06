@@ -23,5 +23,24 @@ export interface LiveAnswerProvider {
     skillsRequired?: string;
     cvText?: string;
     interviewData?: string;
+    dislikedAnswerPatterns?: string;
   }): Promise<LiveAnswerResult>;
+}
+
+export interface SessionSummaryInput {
+  durationSeconds: number;
+  jobDescription?: string;
+  userProfile?: string;
+  transcripts: Array<{
+    text: string;
+    isQuestion: boolean;
+    speakerLabel?: string;
+    answer?: string;
+    keyPoints?: string[];
+    rating?: 'good' | 'bad';
+  }>;
+}
+
+export interface SummaryProvider {
+  generateSessionSummary(input: SessionSummaryInput): Promise<string>;
 }

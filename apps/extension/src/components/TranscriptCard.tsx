@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { TranscriptEntry } from '../types/index.js';
+import { answerRatingsRepo, answerHistoryRepo } from '../storage/answer-ratings-repo.js';
+import type { AnswerHistoryEntry } from '../storage/db.js';
 
 interface Props {
   entry: TranscriptEntry;
@@ -28,6 +30,31 @@ function ThinkingDots() {
 export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice, onRetryAnswer, fontSize }: Props) {
   const sizeClass = `font-size-${fontSize}`;
   const [retrying, setRetrying] = useState(false);
+  const [rating, setRating] = useState<'good' | 'bad' | null>(null);
+  const [history, setHistory] = useState<AnswerHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Load existing rating and history for this question
+  useEffect(() => {
+    if (!entry.liveAnswer) return;
+    void answerRatingsRepo.getRatingForTranscript(entry.id).then(setRating);
+    void answerHistoryRepo.getHistory(entry.text).then((h) => {
+      // Exclude the current session's answer (last entry) from "past" history display
+      setHistory(h.slice(0, -1));
+    });
+  }, [entry.id, entry.text, entry.liveAnswer]);
+
+  const rateAnswer = useCallback(async (r: 'good' | 'bad') => {
+    if (!entry.liveAnswer) return;
+    setRating(r);
+    await answerRatingsRepo.rate({
+      transcriptId: entry.id,
+      question: entry.text,
+      answer: entry.liveAnswer.answer,
+      rating: r,
+    });
+    await answerHistoryRepo.updateRating(entry.text, r);
+  }, [entry.id, entry.text, entry.liveAnswer]);
 
   const isFailed = entry.liveAnswer?.answer?.startsWith(FAILED_ANSWER_MARKER);
   const awaitingAnswer = entry.isQuestion && !entry.isPartial && !entry.liveAnswer;
@@ -164,6 +191,46 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Rating + history row */}
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-gray-400">Was this helpful?</span>
+            <button
+              onClick={() => void rateAnswer('good')}
+              className={`text-sm transition-transform hover:scale-110 ${rating === 'good' ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
+              aria-label="Good answer"
+            >👍</button>
+            <button
+              onClick={() => void rateAnswer('bad')}
+              className={`text-sm transition-transform hover:scale-110 ${rating === 'bad' ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
+              aria-label="Bad answer"
+            >👎</button>
+
+            {history.length > 0 && (
+              <button
+                onClick={() => setShowHistory((v) => !v)}
+                className="ml-auto text-[10px] text-gray-400 hover:text-accent underline"
+              >
+                {showHistory ? 'Hide' : `📚 ${history.length} past answer${history.length > 1 ? 's' : ''}`}
+              </button>
+            )}
+          </div>
+
+          {/* Past answers panel */}
+          {showHistory && history.length > 0 && (
+            <div className="mt-2 border-t border-gray-100 pt-2 space-y-2">
+              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Past answers for this question</p>
+              {history.map((h, i) => (
+                <div key={i} className="bg-gray-50 rounded p-2 text-xs text-gray-600">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] text-gray-400">{new Date(h.createdAt).toLocaleDateString()}</span>
+                    {h.rating && <span>{h.rating === 'good' ? '👍' : '👎'}</span>}
+                  </div>
+                  <p className="leading-snug">{h.answer}</p>
+                </div>
+              ))}
             </div>
           )}
 
