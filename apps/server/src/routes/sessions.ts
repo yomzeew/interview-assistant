@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { sessionStore } from '../services/session-store.js';
 import { createWebSocketToken } from '../utils/token.js';
+import { createLiveAnswerProvider } from '../providers/claude/index.js';
 import { logger } from '../utils/logger.js';
 
 export const sessionsRouter = Router();
@@ -51,6 +52,43 @@ sessionsRouter.post('/', (req, res) => {
     websocketToken,
     websocketUrl: env.PUBLIC_WEBSOCKET_URL,
   });
+});
+
+// POST /api/sessions/:sessionId/retry-answer
+// Retries an AI answer for a question — called when the initial answer failed
+sessionsRouter.post('/:sessionId/retry-answer', async (req, res) => {
+  const { sessionId } = req.params;
+  const { transcriptId, question } = req.body as { transcriptId?: string; question?: string };
+
+  if (!transcriptId || !question) {
+    res.status(400).json({ error: 'transcriptId and question are required' });
+    return;
+  }
+
+  const sess = sessionStore.get(sessionId ?? '');
+  if (!sess) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  try {
+    const provider = createLiveAnswerProvider();
+    const result = await provider.answerQuestion({
+      transcriptId,
+      question,
+      userProfile: sess.userProfile,
+      jobDescription: sess.jobDescription,
+      jobEssentials: sess.jobEssentials,
+      skillsRequired: sess.skillsRequired,
+      cvText: sess.cvText,
+      interviewData: sess.interviewData,
+    });
+    logger.info({ transcriptId, sessionId }, 'Retry answer OK');
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, 'Retry answer failed');
+    res.status(500).json({ error: 'AI unavailable' });
+  }
 });
 
 sessionsRouter.delete('/:sessionId', (req, res) => {

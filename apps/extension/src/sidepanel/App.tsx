@@ -27,7 +27,7 @@ export default function App() {
   const [practiceQuestion, setPracticeQuestion] = useState('');
   const [practiceKey, setPracticeKey] = useState(0);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const { state, start, pause, resume, stop } = useSession();
+  const { state, start, pause, resume, stop, retryAnswer } = useSession();
   const pip = usePiP();
 
   // Keep PiP window in sync whenever transcripts or answers change
@@ -133,6 +133,7 @@ export default function App() {
             fontSize={fontSize}
             onSaveQuestion={(entry) => void handleSaveQuestion(entry)}
             onSendToPractice={handleSendToPractice}
+            onRetryAnswer={retryAnswer}
           />
         )}
         {activeTab === 'translation' && (

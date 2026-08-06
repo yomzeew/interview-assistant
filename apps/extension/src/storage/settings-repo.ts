@@ -2,7 +2,7 @@ import { getDb, type SettingsRecord } from './db.js';
 import type { AppSettings } from '@ica/shared';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  backendUrl: 'http://localhost:4000',
+  backendUrl: 'https://interview-caption-assistant.onrender.com',
   spokenLanguage: 'en',
   targetLanguage: 'en',
   autoDetectLanguage: false,

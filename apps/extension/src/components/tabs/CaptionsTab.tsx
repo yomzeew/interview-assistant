@@ -7,9 +7,10 @@ interface Props {
   fontSize: 'small' | 'medium' | 'large';
   onSaveQuestion(entry: TranscriptEntry): void;
   onSendToPractice(question: string): void;
+  onRetryAnswer(transcriptId: string, question: string): Promise<void>;
 }
 
-export default function CaptionsTab({ transcripts, fontSize, onSaveQuestion, onSendToPractice }: Props) {
+export default function CaptionsTab({ transcripts, fontSize, onSaveQuestion, onSendToPractice, onRetryAnswer }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function CaptionsTab({ transcripts, fontSize, onSaveQuestion, onS
           fontSize={fontSize}
           onSaveQuestion={onSaveQuestion}
           onSendToPractice={onSendToPractice}
+          onRetryAnswer={onRetryAnswer}
         />
       ))}
       <div ref={bottomRef} />

@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { TranscriptEntry } from '../types/index.js';
 
 interface Props {
   entry: TranscriptEntry;
   onSaveQuestion(entry: TranscriptEntry): void;
   onSendToPractice(question: string): void;
+  onRetryAnswer(transcriptId: string, question: string): Promise<void>;
   fontSize: 'small' | 'medium' | 'large';
 }
+
+const FAILED_ANSWER_MARKER = '⚠️ AI answer unavailable';
 
 function formatTimestamp(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -22,11 +25,26 @@ function ThinkingDots() {
   return <span className="text-accent font-bold">{'.'.repeat(dots)}</span>;
 }
 
-export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice, fontSize }: Props) {
+export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice, onRetryAnswer, fontSize }: Props) {
   const sizeClass = `font-size-${fontSize}`;
+  const [retrying, setRetrying] = useState(false);
 
-  // A question is "awaiting answer" once it's final and isQuestion but no liveAnswer yet
+  const isFailed = entry.liveAnswer?.answer?.startsWith(FAILED_ANSWER_MARKER);
   const awaitingAnswer = entry.isQuestion && !entry.isPartial && !entry.liveAnswer;
+
+  const retry = useCallback(async () => {
+    if (retrying) return;
+    setRetrying(true);
+    await onRetryAnswer(entry.id, entry.text);
+    setRetrying(false);
+  }, [retrying, entry.id, entry.text, onRetryAnswer]);
+
+  // Auto-retry after 2 seconds if the answer failed
+  useEffect(() => {
+    if (!isFailed) return;
+    const timer = setTimeout(() => void retry(), 2000);
+    return () => clearTimeout(timer);
+  }, [isFailed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <article
@@ -71,7 +89,24 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
         </div>
       )}
 
-      {entry.liveAnswer && (
+      {entry.liveAnswer && isFailed && (
+        <div className="mt-3 pt-2 border-t border-orange-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-orange-500">
+              {retrying ? '🔄 Retrying…' : '⚠️ Answer failed — retrying in 2s'}
+            </span>
+            <button
+              onClick={() => void retry()}
+              disabled={retrying}
+              className="text-xs text-accent hover:underline disabled:opacity-50"
+            >
+              Retry now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {entry.liveAnswer && !isFailed && (
         <div className="mt-3 pt-2 border-t border-blue-200">
           <p className="text-xs font-semibold text-accent mb-1.5">🤖 Claude's Answer</p>
 
