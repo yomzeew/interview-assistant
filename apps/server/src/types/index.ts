@@ -20,4 +20,6 @@ export interface ActiveSession {
   transcriptionProvider?: 'groq' | 'assemblyai';
   /** Per-session AI provider override — overrides AI_PROVIDER env var */
   aiProvider?: 'groq' | 'claude';
+  /** Pre-formatted markdown of candidate's past projects, for STAR Action examples */
+  projectsContext?: string;
 }

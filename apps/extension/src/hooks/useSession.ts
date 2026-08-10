@@ -152,6 +152,17 @@ export function useSession() {
       _confidenceThreshold = settings.questionConfidenceThreshold ?? 0.65;
       _excludedSpeaker = settings.excludedSpeaker ?? '';
 
+      // Serialize past projects into an AI-ready context block
+      const projectsContext = settings.projects && settings.projects.length > 0
+        ? settings.projects.map((p, i) =>
+            `### Project ${i + 1}: ${p.name}\n` +
+            `Your role: ${p.role}\n` +
+            `Stack: ${p.stack}\n` +
+            `What it does: ${p.description}\n` +
+            `Key results: ${p.achievements}`
+          ).join('\n\n')
+        : undefined;
+
       // Build disliked answer patterns from thumbs-down history
       const badAnswers = await answerRatingsRepo.getRecentBadAnswers(5);
       const dislikedAnswerPatterns = badAnswers.length > 0
@@ -177,6 +188,7 @@ export function useSession() {
           aiProvider: settings.aiProvider !== 'server-default'
             ? settings.aiProvider
             : undefined,
+          projectsContext,
         }),
       });
       if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);

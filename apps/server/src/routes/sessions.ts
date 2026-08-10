@@ -22,6 +22,7 @@ const CreateSessionBody = z.object({
   dislikedAnswerPatterns: z.string().optional(),
   transcriptionProvider: z.enum(['groq', 'assemblyai']).optional(),
   aiProvider: z.enum(['groq', 'claude']).optional(),
+  projectsContext: z.string().optional(),
 });
 
 sessionsRouter.post('/', (req, res) => {
@@ -50,6 +51,7 @@ sessionsRouter.post('/', (req, res) => {
     dislikedAnswerPatterns: result.data.dislikedAnswerPatterns,
     transcriptionProvider: result.data.transcriptionProvider,
     aiProvider: result.data.aiProvider,
+    projectsContext: result.data.projectsContext,
   });
 
   logger.info({ sessionId }, 'Session created');
@@ -89,6 +91,7 @@ sessionsRouter.post('/:sessionId/retry-answer', async (req, res) => {
       skillsRequired: sess.skillsRequired,
       cvText: sess.cvText,
       interviewData: sess.interviewData,
+      projectsContext: sess.projectsContext,
     });
     logger.info({ transcriptId, sessionId }, 'Retry answer OK');
     res.json(result);

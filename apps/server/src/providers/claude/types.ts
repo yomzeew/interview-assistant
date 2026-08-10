@@ -24,6 +24,8 @@ export interface LiveAnswerProvider {
     cvText?: string;
     interviewData?: string;
     dislikedAnswerPatterns?: string;
+    /** Pre-formatted markdown block of past projects — injected by the server from session context */
+    projectsContext?: string;
   }): Promise<LiveAnswerResult>;
 }
 

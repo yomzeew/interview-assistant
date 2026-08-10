@@ -13,14 +13,16 @@ import type {
 function buildContext(input: {
   userProfile?: string; jobDescription?: string;
   jobEssentials?: string; skillsRequired?: string; cvText?: string; interviewData?: string;
+  projectsContext?: string;
 }): string {
   const parts: string[] = [];
-  if (input.userProfile)    parts.push(`## Candidate Ba0ckground\n${input.userProfile}`);
-  if (input.cvText)         parts.push(`## CV / Resume\n${input.cvText.slice(0, 3000)}`);
-  if (input.jobDescription) parts.push(`## Job Description\n${input.jobDescription.slice(0, 1500)}`);
-  if (input.jobEssentials)  parts.push(`## Key Job Essentials\n${input.jobEssentials}`);
-  if (input.skillsRequired) parts.push(`## Required Skills\n${input.skillsRequired}`);
-  if (input.interviewData)  parts.push(`## Interview Preparation Notes & Example Answers\nUse these as a reference to understand how the candidate likes to answer questions. Mirror their style and examples.\n${input.interviewData.slice(0, 4000)}`);
+  if (input.userProfile)      parts.push(`## Candidate Background\n${input.userProfile}`);
+  if (input.cvText)           parts.push(`## CV / Resume\n${input.cvText.slice(0, 3000)}`);
+  if (input.projectsContext)  parts.push(`## Past Projects — Pick the most relevant one as the Action in your STAR answer\n${input.projectsContext}`);
+  if (input.jobDescription)   parts.push(`## Job Description\n${input.jobDescription.slice(0, 1500)}`);
+  if (input.jobEssentials)    parts.push(`## Key Job Essentials\n${input.jobEssentials}`);
+  if (input.skillsRequired)   parts.push(`## Required Skills\n${input.skillsRequired}`);
+  if (input.interviewData)    parts.push(`## Interview Preparation Notes & Example Answers\nUse these as a reference to understand how the candidate likes to answer questions. Mirror their style and examples.\n${input.interviewData.slice(0, 4000)}`);
   return parts.join('\n\n');
 }
 
@@ -171,20 +173,26 @@ Be specific, actionable, and honest based on the actual answers provided.`;
     skillsRequired?: string;
     cvText?: string;
     interviewData?: string;
+    dislikedAnswerPatterns?: string;
+    projectsContext?: string;
   }): Promise<LiveAnswerResult> {
     const contextBlock = buildContext(input);
+    const dislikedBlock = input.dislikedAnswerPatterns
+      ? `\n\nCANDIDATE FEEDBACK — the candidate rated these answer styles negatively. Avoid them:\n${input.dislikedAnswerPatterns}`
+      : '';
 
     const systemPrompt = `You are a real-time interview coach helping a candidate answer questions live.
 
 RULES — follow every one strictly:
 1. Use the STAR method: Situation → Task → Action → Result.
-2. ALWAYS pull real examples from the candidate's CV, interview prep data, or background below. Never invent experience.
-3. If a matching example exists in the data, use it verbatim (names, numbers, technologies). If no good match exists, use a placeholder like [mention your most relevant project here].
-4. Keep the answer speakable in under 60 seconds — concise but complete.
-5. Write in first person as if the candidate is speaking ("I led…", "We built…", "My team…").
-6. End with a concrete Result/impact wherever possible (numbers, percentages, outcomes).
+2. ALWAYS pull real examples from the candidate's CV, past projects, or background below. Never invent experience.
+3. For the Action step, prefer examples from the "Past Projects" section when one matches. Use the project name, stack, and achievements verbatim.
+4. If no good match exists, use a placeholder like [mention your most relevant project here].
+5. Keep the answer speakable in under 60 seconds — concise but complete.
+6. Write in first person as if the candidate is speaking ("I led…", "We built…", "My team…").
+7. End with a concrete Result/impact wherever possible (numbers, percentages, outcomes).
 
-${contextBlock}
+${contextBlock}${dislikedBlock}
 
 Return ONLY valid JSON — no markdown, no explanation:
 {

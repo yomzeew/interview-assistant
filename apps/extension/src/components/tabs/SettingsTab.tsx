@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { settingsRepo } from '../../storage/settings-repo.js';
 import { questionsRepo } from '../../storage/questions-repo.js';
 import { sessionsRepo, transcriptsRepo } from '../../storage/sessions-repo.js';
-import type { AppSettings, Language } from '@ica/shared';
+import type { AppSettings, Language, Project } from '@ica/shared';
 import { LANGUAGE_LABELS } from '@ica/shared';
 
 const LANGUAGES = Object.entries(LANGUAGE_LABELS) as [Language, string][];
@@ -39,6 +39,127 @@ function SkillsInput({ value, onChange }: { value: string; onChange(v: string): 
         placeholder={skills.length === 0 ? 'Type a skill and press Enter…' : 'Add more…'}
         className="flex-1 min-w-[120px] text-xs outline-none bg-transparent"
       />
+    </div>
+  );
+}
+
+function newProject(): Project {
+  return { id: crypto.randomUUID(), name: '', role: '', stack: '', description: '', achievements: '' };
+}
+
+/** Inline edit form for a single project */
+function ProjectCard({
+  project,
+  onSave,
+  onDelete,
+  defaultOpen,
+}: {
+  project: Project;
+  onSave(p: Project): void;
+  onDelete(): void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const [draft, setDraft] = useState(project);
+
+  const patch = (k: keyof Project, v: string) => setDraft((d) => ({ ...d, [k]: v }));
+
+  const save = () => { onSave(draft); setOpen(false); };
+
+  const headerLabel = draft.name || 'Untitled project';
+  const stackLabel = draft.stack ? ` · ${draft.stack.split(',').slice(0, 3).join(', ')}` : '';
+
+  return (
+    <div className="border border-gray-200 rounded overflow-hidden">
+      {/* Header row */}
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="text-gray-400 text-xs">{open ? '▾' : '▸'}</span>
+        <span className="flex-1 min-w-0">
+          <span className="text-xs font-medium text-gray-800 truncate">{headerLabel}</span>
+          {stackLabel && (
+            <span className="text-[10px] text-gray-400 ml-1">{stackLabel}</span>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50"
+        >
+          Remove
+        </button>
+      </button>
+
+      {/* Expanded edit form */}
+      {open && (
+        <div className="border-t border-gray-100 bg-gray-50 p-2.5 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Project name *</label>
+              <input
+                value={draft.name}
+                onChange={(e) => patch('name', e.target.value)}
+                placeholder="e.g. E-commerce Platform"
+                className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-accent bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Your role *</label>
+              <input
+                value={draft.role}
+                onChange={(e) => patch('role', e.target.value)}
+                placeholder="e.g. Lead Frontend Engineer"
+                className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-accent bg-white"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Tech stack</label>
+            <input
+              value={draft.stack}
+              onChange={(e) => patch('stack', e.target.value)}
+              placeholder="e.g. React, Node.js, PostgreSQL, AWS"
+              className="w-full text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-accent bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-600 mb-0.5">What the project does</label>
+            <textarea
+              rows={2}
+              value={draft.description}
+              onChange={(e) => patch('description', e.target.value)}
+              placeholder="e.g. Multi-tenant SaaS platform handling 50k orders/day for 200+ retailers"
+              className="w-full text-xs border border-gray-200 rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-accent bg-white"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-gray-600 mb-0.5">
+              Key achievements / impact
+              <span className="ml-1 font-normal text-gray-400">(numbers make great STAR Results)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={draft.achievements}
+              onChange={(e) => patch('achievements', e.target.value)}
+              placeholder="e.g. Reduced checkout latency 40%, scaled to 3× traffic, delivered 2 weeks early"
+              className="w-full text-xs border border-gray-200 rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-accent bg-white"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={() => { setDraft(project); setOpen(false); }}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 bg-white">
+              Cancel
+            </button>
+            <button type="button" onClick={save}
+              className="text-xs text-white bg-accent hover:opacity-90 px-3 py-1 rounded">
+              Save project
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,6 +314,36 @@ export default function SettingsTab() {
           <button onClick={() => void clearHistory()}
             className="text-xs text-red-500 hover:underline">
             🗑 Delete all transcript history
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">📁 Past Projects</h2>
+        <p className="text-xs text-gray-400 mb-2">
+          Add projects you've worked on. The AI picks the most relevant one as the <strong>Action</strong> step in STAR answers — giving concrete, believable examples instead of generics.
+        </p>
+        <div className="space-y-1.5">
+          {(settings.projects ?? []).map((p, idx) => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              onSave={(updated) => {
+                const next = (settings.projects ?? []).map((x) => x.id === updated.id ? updated : x);
+                update({ projects: next });
+              }}
+              onDelete={() => {
+                update({ projects: (settings.projects ?? []).filter((x) => x.id !== p.id) });
+              }}
+              defaultOpen={idx === (settings.projects ?? []).length - 1 && p.name === ''}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => update({ projects: [...(settings.projects ?? []), newProject()] })}
+            className="w-full text-xs border border-dashed border-gray-300 rounded p-2 text-gray-500 hover:border-accent hover:text-accent transition-colors"
+          >
+            + Add project
           </button>
         </div>
       </section>

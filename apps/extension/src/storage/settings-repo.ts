@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   transcriptionProvider: 'server-default' as const,
   questionConfidenceThreshold: 0.65,
   excludedSpeaker: '',
+  projects: [],
 };
 
 export const settingsRepo = {

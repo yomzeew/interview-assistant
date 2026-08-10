@@ -75,6 +75,24 @@ export interface SavedQuestion {
   updatedAt: number;
 }
 
+/**
+ * A past project the candidate worked on.
+ * The AI uses these as ready-made Action examples in STAR answers.
+ */
+export interface Project {
+  id: string;
+  /** Project / product name */
+  name: string;
+  /** Candidate's role on this project, e.g. "Lead Frontend Engineer" */
+  role: string;
+  /** Comma-separated technologies, e.g. "React, Node.js, PostgreSQL, AWS" */
+  stack: string;
+  /** 1-2 sentence description of what the project does */
+  description: string;
+  /** Concrete outcomes / impact — numbers are great, e.g. "Reduced latency by 40%, scaled to 3× traffic" */
+  achievements: string;
+}
+
 export interface AppSettings {
   backendUrl: string;
   spokenLanguage: Language;
@@ -120,6 +138,11 @@ export interface AppSettings {
    * is the candidate's own voice echoing back in a panel). Empty = no filter.
    */
   excludedSpeaker: string;
+  /**
+   * Past projects to use as Action examples in STAR answers.
+   * The AI will pick the most relevant project for each question.
+   */
+  projects: Project[];
 }
 
 export interface GeneratePracticeAnswerInput {

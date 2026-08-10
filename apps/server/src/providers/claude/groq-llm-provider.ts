@@ -19,14 +19,16 @@ const MODEL = 'llama-3.3-70b-versatile'; // free, fast, accurate
 function buildContext(input: {
   userProfile?: string; jobDescription?: string;
   jobEssentials?: string; skillsRequired?: string; cvText?: string; interviewData?: string;
+  projectsContext?: string;
 }): string {
   const parts: string[] = [];
-  if (input.userProfile)    parts.push(`## Candidate Background\n${input.userProfile}`);
-  if (input.cvText)         parts.push(`## CV / Resume\n${input.cvText.slice(0, 3000)}`);
-  if (input.jobDescription) parts.push(`## Job Description\n${input.jobDescription.slice(0, 1500)}`);
-  if (input.jobEssentials)  parts.push(`## Key Job Essentials\n${input.jobEssentials}`);
-  if (input.skillsRequired) parts.push(`## Required Skills\n${input.skillsRequired}`);
-  if (input.interviewData)  parts.push(`## Interview Preparation Notes & Example Answers\nUse these as a reference to understand how the candidate likes to answer questions. Mirror their style and examples.\n${input.interviewData.slice(0, 4000)}`);
+  if (input.userProfile)      parts.push(`## Candidate Background\n${input.userProfile}`);
+  if (input.cvText)           parts.push(`## CV / Resume\n${input.cvText.slice(0, 3000)}`);
+  if (input.projectsContext)  parts.push(`## Past Projects — Pick the most relevant one as the Action in your STAR answer\n${input.projectsContext}`);
+  if (input.jobDescription)   parts.push(`## Job Description\n${input.jobDescription.slice(0, 1500)}`);
+  if (input.jobEssentials)    parts.push(`## Key Job Essentials\n${input.jobEssentials}`);
+  if (input.skillsRequired)   parts.push(`## Required Skills\n${input.skillsRequired}`);
+  if (input.interviewData)    parts.push(`## Interview Preparation Notes & Example Answers\nUse these as a reference to understand how the candidate likes to answer questions. Mirror their style and examples.\n${input.interviewData.slice(0, 4000)}`);
   return parts.join('\n\n');
 }
 
@@ -85,6 +87,7 @@ export class GroqLLMProvider implements LiveAnswerProvider, PracticeCoachProvide
     cvText?: string;
     interviewData?: string;
     dislikedAnswerPatterns?: string;
+    projectsContext?: string;
   }): Promise<LiveAnswerResult> {
     const contextBlock = buildContext(input);
     const dislikedBlock = input.dislikedAnswerPatterns

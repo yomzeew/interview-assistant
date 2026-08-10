@@ -113,6 +113,7 @@ export async function handleWebSocketConnection(
             cvText: sess?.cvText,
             interviewData: sess?.interviewData,
             dislikedAnswerPatterns: sess?.dislikedAnswerPatterns,
+            projectsContext: sess?.projectsContext,
           });
           send(ws, {
             type: 'live.answer',
