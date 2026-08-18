@@ -15,40 +15,30 @@ import type {
 
 type FullProvider = LiveAnswerProvider & PracticeCoachProvider & SummaryProvider;
 
-/** Returns true when the error is a billing/credit exhaustion from Anthropic */
-function isCreditError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes('credit balance') ||
-    msg.includes('insufficient_quota') ||
-    msg.includes('Your credit') ||
-    (msg.includes('400') && msg.includes('billing'))
-  );
-}
-
 export class FallbackProvider implements FullProvider {
   private usingFallback = false;
 
   constructor(
-    private readonly primary: FullProvider,   // Claude
-    private readonly fallback: FullProvider   // Groq
+    private readonly primary: FullProvider,   // e.g. Claude
+    private readonly fallback: FullProvider   // e.g. Groq
   ) {}
-
-  private active(): FullProvider {
-    return this.usingFallback ? this.fallback : this.primary;
-  }
 
   private async tryWithFallback<T>(fn: (p: FullProvider) => Promise<T>): Promise<T> {
     if (this.usingFallback) return fn(this.fallback);
     try {
       return await fn(this.primary);
-    } catch (err) {
-      if (isCreditError(err)) {
-        logger.warn('Claude credits exhausted — switching to Groq LLaMA 3 (free)');
-        this.usingFallback = true;
-        return fn(this.fallback);
+    } catch (primaryErr) {
+      const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      logger.warn({ err: primaryMsg }, 'Primary AI provider failed — switching to fallback');
+      this.usingFallback = true;
+      try {
+        return await fn(this.fallback);
+      } catch (fallbackErr) {
+        // Both failed — rethrow primary error with context
+        const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        logger.error({ primaryErr: primaryMsg, fallbackErr: fallbackMsg }, 'Both AI providers failed');
+        throw primaryErr;
       }
-      throw err;
     }
   }
 

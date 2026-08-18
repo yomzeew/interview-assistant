@@ -14,7 +14,8 @@ import type {
 } from '@ica/shared';
 
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile'; // free, fast, accurate
+/** Best available Groq production LLM as of 2026 — 120B, 500 t/s */
+const MODEL = 'openai/gpt-oss-120b';
 
 function buildContext(input: {
   userProfile?: string; jobDescription?: string;
@@ -129,11 +130,25 @@ Return ONLY valid JSON — no markdown, no explanation:
         keyPoints: parsed.keyPoints,
       };
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Hard failures — throw so FallbackProvider can try Claude instead
+      const isHardFailure =
+        msg.includes('401') || msg.includes('invalid_api_key') ||  // bad key
+        msg.includes('404') || msg.includes('does not exist') ||   // model removed
+        msg.includes('GROQ_API_KEY') || msg.includes('required');  // not configured
+      if (isHardFailure) {
+        logger.error({ err }, 'Groq LLM hard failure — rethrowing for fallback');
+        throw err;
+      }
+      // Soft failures (rate limit, transient) — return a failure marker so the UI can retry
+      const reason = msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')
+        ? 'Groq rate limit hit — wait a moment and retry.'
+        : `Groq error: ${msg.slice(0, 100)}`;
       logger.error({ err }, 'Groq LLM live answer error');
       return {
         transcriptId: input.transcriptId,
         question: input.question,
-        answer: '⚠️ AI answer unavailable right now.',
+        answer: `⚠️ AI answer unavailable — ${reason}`,
         keyPoints: [],
       };
     }

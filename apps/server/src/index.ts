@@ -75,7 +75,7 @@ app.post('/api/health/groq', express.json(), async (_req, res) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-20b', // lightweight model for health ping
         max_tokens: 1,
         messages: [{ role: 'user', content: 'Hi' }],
       }),

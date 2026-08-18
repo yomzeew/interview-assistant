@@ -171,14 +171,10 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
 
       {/* Answer failed (provider returned error marker) */}
       {entry.liveAnswer && isFailed && (
-        <div className="mt-3 pt-2 border-t border-orange-200">
+        <div className="mt-3 pt-2 border-t border-orange-200 space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-orange-500">
-              {retrying
-                ? '🔄 Retrying…'
-                : autoRetried
-                ? '⚠️ Answer failed — AI may be unavailable'
-                : '⚠️ Answer failed — retrying in 2s'}
+            <span className="text-xs text-orange-500 font-medium">
+              {retrying ? '🔄 Retrying…' : autoRetried ? '⚠️ Answer failed' : '⚠️ Retrying in 2s…'}
             </span>
             <button
               onClick={() => void retry()}
@@ -188,6 +184,15 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
               Retry now
             </button>
           </div>
+          {/* Show the specific reason from the server — only when it contains a structured message after "—" */}
+          {autoRetried && (() => {
+            const afterMarker = entry.liveAnswer.answer.includes(' — ')
+              ? entry.liveAnswer.answer.split(' — ').slice(1).join(' — ').trim()
+              : null;
+            return afterMarker
+              ? <p className="text-[10px] text-orange-400 leading-snug">{afterMarker}</p>
+              : null;
+          })()}
         </div>
       )}
 

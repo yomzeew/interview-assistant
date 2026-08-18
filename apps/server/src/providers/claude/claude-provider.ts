@@ -228,16 +228,20 @@ Return ONLY valid JSON — no markdown, no explanation:
     } catch (err: unknown) {
       // Gracefully degrade when API credits are exhausted or key is invalid
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('credit balance') || msg.includes('invalid_api_key') || msg.includes('401') || msg.includes('400')) {
-        logger.warn('Claude API unavailable (credits/key issue) — returning placeholder answer');
-        return {
-          transcriptId: input.transcriptId,
-          question,
-          answer: '⚠️ Claude AI unavailable — add credits at console.anthropic.com/settings/billing to enable live answers.',
-          keyPoints: ['Top up Anthropic credits to enable AI-powered answers'],
-        };
-      }
-      throw err;
+      const reason = msg.includes('credit balance') || msg.includes('billing') || msg.includes('402')
+        ? 'No Anthropic credits — top up at console.anthropic.com/settings/billing.'
+        : msg.includes('invalid_api_key') || msg.includes('401')
+        ? 'Invalid Anthropic API key — check it at console.anthropic.com.'
+        : msg.includes('permission') || msg.includes('403')
+        ? 'API key lacks permission for this model.'
+        : `Claude error: ${msg.slice(0, 100)}`;
+      logger.warn({ msg }, 'Claude API unavailable — returning failure marker');
+      return {
+        transcriptId: input.transcriptId,
+        question,
+        answer: `⚠️ AI answer unavailable — ${reason}`,
+        keyPoints: [],
+      };
     }
   }
 }
