@@ -19,7 +19,7 @@ const EnvSchema = z.object({
 
   ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
-  AI_PROVIDER: z.enum(['claude', 'groq']).default('groq'),
+  AI_PROVIDER: z.enum(['claude', 'groq']).default('claude'),
   GROQ_API_KEY: z.string().default(''),
 
   SESSION_TOKEN_SECRET: z.string().min(16).default('dev-secret-change-in-production-!!'),

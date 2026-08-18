@@ -112,7 +112,10 @@ if (env.NODE_ENV !== 'test') {
     logger.info(`🚀 Server on :${env.PORT}`);
     logger.info(`   Transcription: ${env.TRANSCRIPTION_PROVIDER}`);
     logger.info(`   Translation:   ${env.TRANSLATION_PROVIDER}`);
-    logger.info(`   Claude:        ${env.ANTHROPIC_API_KEY ? '✓' : '✗ not configured'}`);
+    logger.info(`   AI provider:   ${env.AI_PROVIDER} (Claude ${env.ANTHROPIC_API_KEY ? '✓' : '✗'} / Groq ${env.GROQ_API_KEY || env.TRANSCRIPTION_API_KEY ? '✓' : '✗'})`);
+    if (env.AI_PROVIDER === 'claude' && !env.ANTHROPIC_API_KEY) {
+      logger.warn('   ⚠️  AI_PROVIDER=claude but ANTHROPIC_API_KEY is not set — answers will use Groq fallback');
+    }
   });
 }
 
