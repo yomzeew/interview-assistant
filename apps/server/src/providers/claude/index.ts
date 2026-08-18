@@ -16,14 +16,8 @@ function buildGroq(): FullProvider {
 }
 
 function buildClaude(apiKey?: string): FullProvider {
-  // Accept a user-supplied key; fall back to env var (ClaudeProvider handles the final fallback + error)
-  const claude = new ClaudeProvider(apiKey);
-  const groqKey = env.GROQ_API_KEY || env.TRANSCRIPTION_API_KEY;
-  if (groqKey) {
-    // Wrap: tries Claude first, falls back to Groq on credit exhaustion
-    return new FallbackProvider(claude, new GroqLLMProvider(groqKey));
-  }
-  return claude;
+  // Claude only — no Groq fallback. If Claude is configured, use it exclusively.
+  return new ClaudeProvider(apiKey);
 }
 
 /**
