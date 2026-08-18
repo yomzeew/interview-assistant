@@ -189,6 +189,7 @@ export function useSession() {
             ? settings.aiProvider
             : undefined,
           projectsContext,
+          anthropicApiKey: settings.anthropicApiKey || undefined,
         }),
       });
       if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);

@@ -59,19 +59,35 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
   const isFailed = entry.liveAnswer?.answer?.startsWith(FAILED_ANSWER_MARKER);
   const awaitingAnswer = entry.isQuestion && !entry.isPartial && !entry.liveAnswer;
 
+  // Track whether the one automatic retry has already fired
+  const [autoRetried, setAutoRetried] = useState(false);
+  // Show a timeout error if no answer arrives within 12 seconds
+  const [timedOut, setTimedOut] = useState(false);
+
   const retry = useCallback(async () => {
     if (retrying) return;
     setRetrying(true);
+    setTimedOut(false);
     await onRetryAnswer(entry.id, entry.text);
     setRetrying(false);
   }, [retrying, entry.id, entry.text, onRetryAnswer]);
 
-  // Auto-retry after 2 seconds if the answer failed
+  // Auto-retry once (after 2s) on first failure only
   useEffect(() => {
-    if (!isFailed) return;
-    const timer = setTimeout(() => void retry(), 2000);
+    if (!isFailed || autoRetried) return;
+    const timer = setTimeout(() => {
+      setAutoRetried(true);
+      void retry();
+    }, 2000);
     return () => clearTimeout(timer);
   }, [isFailed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Timeout: if still awaiting after 12s, show a manual retry prompt
+  useEffect(() => {
+    if (!awaitingAnswer) return;
+    const timer = setTimeout(() => setTimedOut(true), 12_000);
+    return () => clearTimeout(timer);
+  }, [awaitingAnswer]);
 
   return (
     <article
@@ -130,21 +146,39 @@ export default function TranscriptCard({ entry, onSaveQuestion, onSendToPractice
         </div>
       )}
 
-      {/* Claude AI answer — shown automatically, no expand button needed */}
-      {awaitingAnswer && (
+      {/* Awaiting AI answer */}
+      {awaitingAnswer && !timedOut && (
         <div className="mt-3 pt-2 border-t border-blue-200">
           <div className="flex items-center gap-1.5 text-xs text-accent font-semibold mb-1">
-            <span>🤖 Claude is thinking</span>
+            <span>🤖 AI is thinking</span>
             <ThinkingDots />
           </div>
         </div>
       )}
 
+      {/* Timed out — no answer arrived (likely AI not configured) */}
+      {awaitingAnswer && timedOut && (
+        <div className="mt-3 pt-2 border-t border-orange-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-orange-500">⚠️ No answer — check AI provider in Settings</span>
+            <button onClick={() => void retry()} disabled={retrying}
+              className="text-xs text-accent hover:underline disabled:opacity-50">
+              {retrying ? 'Retrying…' : 'Retry now'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Answer failed (provider returned error marker) */}
       {entry.liveAnswer && isFailed && (
         <div className="mt-3 pt-2 border-t border-orange-200">
           <div className="flex items-center justify-between">
             <span className="text-xs text-orange-500">
-              {retrying ? '🔄 Retrying…' : '⚠️ Answer failed — retrying in 2s'}
+              {retrying
+                ? '🔄 Retrying…'
+                : autoRetried
+                ? '⚠️ Answer failed — AI may be unavailable'
+                : '⚠️ Answer failed — retrying in 2s'}
             </span>
             <button
               onClick={() => void retry()}

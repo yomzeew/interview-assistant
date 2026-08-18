@@ -38,9 +38,14 @@ function safeJson<T>(text: string, fallback: T): T {
 export class ClaudeProvider implements PracticeCoachProvider, LiveAnswerProvider, SummaryProvider {
   private readonly client: Anthropic;
 
-  constructor() {
-    if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required');
-    this.client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  /**
+   * @param apiKey  Optional user-supplied Anthropic API key.
+   *                Falls back to ANTHROPIC_API_KEY env var if omitted.
+   */
+  constructor(apiKey?: string) {
+    const key = apiKey || env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error('ANTHROPIC_API_KEY is required');
+    this.client = new Anthropic({ apiKey: key });
   }
 
   // ── Practice Mode ──────────────────────────────────────────────────────────

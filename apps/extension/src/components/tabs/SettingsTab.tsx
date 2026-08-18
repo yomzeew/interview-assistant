@@ -43,6 +43,35 @@ function SkillsInput({ value, onChange }: { value: string; onChange(v: string): 
   );
 }
 
+type ApiStatus = 'idle' | 'checking' | 'ok' | 'no_credits' | 'invalid_key' | 'no_key' | 'error';
+
+function CreditStatusBadge({ status, settingsUrl }: { status: { status: ApiStatus; error: string }; settingsUrl: string }) {
+  if (status.status === 'idle') return null;
+  if (status.status === 'checking') {
+    return <p className="text-[10px] text-gray-400 animate-pulse">Checking…</p>;
+  }
+  if (status.status === 'ok') {
+    return <p className="text-[10px] text-green-600">✓ Credits available — API key working</p>;
+  }
+  if (status.status === 'no_credits') {
+    return (
+      <p className="text-[10px] text-orange-500">
+        ⚠️ Credits exhausted.{' '}
+        <a href={settingsUrl} target="_blank" rel="noreferrer" className="underline">
+          Top up →
+        </a>
+      </p>
+    );
+  }
+  if (status.status === 'invalid_key') {
+    return <p className="text-[10px] text-red-500">✗ {status.error ?? 'Invalid API key'}</p>;
+  }
+  if (status.status === 'no_key') {
+    return <p className="text-[10px] text-gray-400">Not configured on server</p>;
+  }
+  return <p className="text-[10px] text-red-500">⚠️ {status.error ?? 'Error'}</p>;
+}
+
 function newProject(): Project {
   return { id: crypto.randomUUID(), name: '', role: '', stack: '', description: '', achievements: '' };
 }
@@ -175,11 +204,58 @@ export default function SettingsTab() {
   const [interviewDataName, setInterviewDataName] = useState('');
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstLoad = useRef(true);
+  const [claudeKeyStatus, setClaudeKeyStatus] = useState<'untested' | 'testing' | 'ok' | 'error'>('untested');
+  const [claudeKeyError, setClaudeKeyError] = useState('');
+
+  const [claudeStatus, setClaudeStatus] = useState<{ status: ApiStatus; error: string }>({ status: 'idle', error: '' });
+  const [groqStatus, setGroqStatus] = useState<{ status: ApiStatus; error: string }>({ status: 'idle', error: '' });
 
   useEffect(() => { void settingsRepo.get().then(s => {
     setSettings(s);
     if (s.cvText) setCvStatus('done');
+    // Auto-check credits on mount using whatever backendUrl is saved
+    void autoCheckCredits(s.backendUrl, s.anthropicApiKey);
   }); }, []);
+
+  const autoCheckCredits = async (backendUrl: string, anthropicApiKey?: string) => {
+    // Claude
+    setClaudeStatus({ status: 'checking', error: '' });
+    setGroqStatus({ status: 'checking', error: '' });
+    const [claudeRes, groqRes] = await Promise.allSettled([
+      fetch(`${backendUrl}/api/health/claude`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(anthropicApiKey ? { anthropicApiKey } : {}),
+      }).then(r => r.json() as Promise<{ ok: boolean; status: string; error?: string }>),
+      fetch(`${backendUrl}/api/health/groq`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      }).then(r => r.json() as Promise<{ ok: boolean; status: string; error?: string }>),
+    ]);
+
+    if (claudeRes.status === 'fulfilled') {
+      setClaudeStatus({ status: claudeRes.value.status as ApiStatus, error: claudeRes.value.error ?? '' });
+    } else {
+      setClaudeStatus({ status: 'error', error: 'Could not reach server' });
+    }
+    if (groqRes.status === 'fulfilled') {
+      setGroqStatus({ status: groqRes.value.status as ApiStatus, error: groqRes.value.error ?? '' });
+    } else {
+      setGroqStatus({ status: 'error', error: 'Could not reach server' });
+    }
+  };
+
+  // Re-check credits when backendUrl or anthropicApiKey changes (debounced)
+  const creditCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!settings || isFirstLoad.current) return;
+    if (creditCheckTimer.current) clearTimeout(creditCheckTimer.current);
+    creditCheckTimer.current = setTimeout(() => {
+      void autoCheckCredits(settings.backendUrl, settings.anthropicApiKey);
+    }, 1500);
+    return () => { if (creditCheckTimer.current) clearTimeout(creditCheckTimer.current); };
+  }, [settings?.backendUrl, settings?.anthropicApiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save 800ms after any change (skip the very first render)
   useEffect(() => {
@@ -217,6 +293,49 @@ export default function SettingsTab() {
     }));
   };
 
+  const checkCredits = async (provider: 'claude' | 'groq') => {
+    if (!settings) return;
+    const setter = provider === 'claude' ? setClaudeStatus : setGroqStatus;
+    setter({ status: 'checking', error: '' });
+    try {
+      const body = provider === 'claude' && settings.anthropicApiKey
+        ? JSON.stringify({ anthropicApiKey: settings.anthropicApiKey })
+        : '{}';
+      const res = await fetch(`${settings.backendUrl}/api/health/${provider}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      const data = await res.json() as { ok: boolean; status: string; error?: string };
+      setter({ status: data.status as ApiStatus, error: data.error ?? '' });
+    } catch {
+      setter({ status: 'error', error: 'Could not reach server — is it running?' });
+    }
+  };
+
+  const testClaudeKey = async () => {
+    if (!settings) return;
+    setClaudeKeyStatus('testing');
+    setClaudeKeyError('');
+    try {
+      const res = await fetch(`${settings.backendUrl}/api/health/claude`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anthropicApiKey: settings.anthropicApiKey || undefined }),
+      });
+      const data = await res.json() as { ok: boolean; error?: string };
+      if (data.ok) {
+        setClaudeKeyStatus('ok');
+      } else {
+        setClaudeKeyStatus('error');
+        setClaudeKeyError(data.error ?? 'Unknown error');
+      }
+    } catch {
+      setClaudeKeyStatus('error');
+      setClaudeKeyError('Could not reach server — is it running?');
+    }
+  };
+
   const handleCvUpload = async (file: File) => {
     setCvStatus('parsing');
     setCvFileName(file.name);
@@ -250,6 +369,44 @@ export default function SettingsTab() {
           className="w-full text-xs border border-gray-200 rounded p-1.5"
           placeholder="http://localhost:4000" />
         <p className="text-xs text-gray-400 mt-1">HTTPS required in production.</p>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">💳 API Credit Status</h2>
+        <p className="text-xs text-gray-400 mb-2">Check whether your API keys have remaining credits.</p>
+        <div className="space-y-2">
+          {/* Anthropic / Claude */}
+          <div className="border border-gray-200 rounded p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-700">Anthropic (Claude)</span>
+              <button
+                type="button"
+                onClick={() => void checkCredits('claude')}
+                disabled={claudeStatus.status === 'checking'}
+                className="text-[10px] px-2 py-0.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                {claudeStatus.status === 'checking' ? 'Checking…' : 'Check credits'}
+              </button>
+            </div>
+            <CreditStatusBadge status={claudeStatus} settingsUrl="https://console.anthropic.com/settings/billing" />
+          </div>
+
+          {/* Groq */}
+          <div className="border border-gray-200 rounded p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-700">Groq (Whisper + LLaMA)</span>
+              <button
+                type="button"
+                onClick={() => void checkCredits('groq')}
+                disabled={groqStatus.status === 'checking'}
+                className="text-[10px] px-2 py-0.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+              >
+                {groqStatus.status === 'checking' ? 'Checking…' : 'Check credits'}
+              </button>
+            </div>
+            <CreditStatusBadge status={groqStatus} settingsUrl="https://console.groq.com/settings" />
+          </div>
+        </div>
       </section>
 
       <section>
@@ -513,6 +670,41 @@ export default function SettingsTab() {
             When set, every answer and summary in this session uses this provider, regardless of server configuration.
             Falls back to server default if the chosen provider isn't configured on the server.
           </p>
+          <div className="pt-1 border-t border-gray-100 mt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Anthropic API Key
+              <span className="ml-1 font-normal text-gray-400">(optional — overrides server key)</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={settings.anthropicApiKey ?? ''}
+                onChange={(e) => { update({ anthropicApiKey: e.target.value }); setClaudeKeyStatus('untested'); }}
+                placeholder="sk-ant-…"
+                className="flex-1 text-xs border border-gray-200 rounded p-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => void testClaudeKey()}
+                disabled={claudeKeyStatus === 'testing'}
+                className="text-xs px-2.5 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+              >
+                {claudeKeyStatus === 'testing' ? 'Testing…' : 'Test key'}
+              </button>
+            </div>
+            {claudeKeyStatus === 'ok' && (
+              <p className="text-[10px] text-green-600 mt-1">✓ API key is valid and working</p>
+            )}
+            {claudeKeyStatus === 'error' && (
+              <p className="text-[10px] text-red-500 mt-1">⚠️ {claudeKeyError}</p>
+            )}
+            {claudeKeyStatus === 'untested' && (
+              <p className="text-[10px] text-gray-400 mt-1">
+                Leave blank to use the server's configured key. Get a key at{' '}
+                <span className="underline">console.anthropic.com</span>.
+              </p>
+            )}
+          </div>
         </div>
       </section>
 

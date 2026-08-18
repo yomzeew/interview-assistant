@@ -23,6 +23,7 @@ const CreateSessionBody = z.object({
   transcriptionProvider: z.enum(['groq', 'assemblyai']).optional(),
   aiProvider: z.enum(['groq', 'claude']).optional(),
   projectsContext: z.string().optional(),
+  anthropicApiKey: z.string().optional(),
 });
 
 sessionsRouter.post('/', (req, res) => {
@@ -52,6 +53,7 @@ sessionsRouter.post('/', (req, res) => {
     transcriptionProvider: result.data.transcriptionProvider,
     aiProvider: result.data.aiProvider,
     projectsContext: result.data.projectsContext,
+    anthropicApiKey: result.data.anthropicApiKey,
   });
 
   logger.info({ sessionId }, 'Session created');
@@ -81,7 +83,7 @@ sessionsRouter.post('/:sessionId/retry-answer', async (req, res) => {
   }
 
   try {
-    const provider = createLiveAnswerProvider(sess.aiProvider);
+    const provider = createLiveAnswerProvider(sess.aiProvider, sess.anthropicApiKey);
     const result = await provider.answerQuestion({
       transcriptId,
       question,
@@ -117,7 +119,7 @@ sessionsRouter.post('/:sessionId/summary', async (req, res) => {
   };
 
   try {
-    const provider = createSummaryProvider(sess.aiProvider);
+    const provider = createSummaryProvider(sess.aiProvider, sess.anthropicApiKey);
     const markdown = await provider.generateSessionSummary({
       durationSeconds: body.durationSeconds ?? 0,
       jobDescription: sess.jobDescription,

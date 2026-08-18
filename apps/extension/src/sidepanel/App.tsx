@@ -31,6 +31,21 @@ export default function App() {
   const { state, start, pause, resume, stop, retryAnswer } = useSession();
   const pip = usePiP();
 
+  // Space bar → toggle pause/resume while a session is active
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ignore if focus is inside an input, textarea, or contenteditable
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      if (state.connectionState === 'connected') void pause();
+      else if (state.connectionState === 'paused') void resume();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [state.connectionState, pause, resume]);
+
   // Keep PiP window in sync whenever transcripts or answers change
   useEffect(() => {
     if (pip.pipOpen) pip.update(state.transcripts, settings?.fontSize ?? 'medium');

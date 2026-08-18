@@ -143,6 +143,12 @@ export interface AppSettings {
    * The AI will pick the most relevant project for each question.
    */
   projects: Project[];
+  /**
+   * Optional user-supplied Anthropic API key.
+   * When set, takes precedence over the server's ANTHROPIC_API_KEY env var.
+   * Stored locally in the extension — never logged by the server.
+   */
+  anthropicApiKey: string;
 }
 
 export interface GeneratePracticeAnswerInput {

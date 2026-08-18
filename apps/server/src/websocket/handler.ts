@@ -50,7 +50,7 @@ export async function handleWebSocketConnection(
   let liveAnswerProvider: ReturnType<typeof createLiveAnswerProvider> | null = null;
   try {
     // Use per-session AI provider override if the user picked one in Settings
-    liveAnswerProvider = createLiveAnswerProvider(sess0?.aiProvider);
+    liveAnswerProvider = createLiveAnswerProvider(sess0?.aiProvider, sess0?.anthropicApiKey);
   } catch {
     logger.warn('Live answer provider unavailable (no AI keys configured)');
   }

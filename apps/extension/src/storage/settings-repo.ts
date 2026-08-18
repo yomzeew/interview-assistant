@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   questionConfidenceThreshold: 0.65,
   excludedSpeaker: '',
   projects: [],
+  anthropicApiKey: '',
 };
 
 export const settingsRepo = {

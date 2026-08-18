@@ -79,8 +79,9 @@ export default function Header({ connectionState, tabTitle, elapsedSeconds, onSt
         )}
         {isLive && (
           <>
-            <button onClick={onPause} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors" aria-label="Pause">
+            <button onClick={onPause} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5" aria-label="Pause (Space)">
               ⏸ Pause
+              <kbd className="text-[9px] bg-yellow-600/60 rounded px-1 py-0.5 font-mono leading-none">Space</kbd>
             </button>
             <button onClick={onStop} className="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors" aria-label="Stop">
               ■ Stop
@@ -89,8 +90,9 @@ export default function Header({ connectionState, tabTitle, elapsedSeconds, onSt
         )}
         {isPaused && (
           <>
-            <button onClick={onResume} className="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors" aria-label="Resume">
+            <button onClick={onResume} className="flex-1 bg-green-600 hover:bg-green-500 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors flex items-center justify-center gap-1.5" aria-label="Resume (Space)">
               ▶ Resume
+              <kbd className="text-[9px] bg-green-700/60 rounded px-1 py-0.5 font-mono leading-none">Space</kbd>
             </button>
             <button onClick={onStop} className="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold py-1.5 px-3 rounded transition-colors" aria-label="Stop">
               ■ Stop

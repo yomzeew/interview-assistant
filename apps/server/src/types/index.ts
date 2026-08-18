@@ -22,4 +22,6 @@ export interface ActiveSession {
   aiProvider?: 'groq' | 'claude';
   /** Pre-formatted markdown of candidate's past projects, for STAR Action examples */
   projectsContext?: string;
+  /** User-supplied Anthropic API key — takes precedence over server env var */
+  anthropicApiKey?: string;
 }

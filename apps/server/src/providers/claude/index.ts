@@ -15,9 +15,9 @@ function buildGroq(): FullProvider {
   return new GroqLLMProvider(groqKey);
 }
 
-function buildClaude(): FullProvider {
-  if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required when AI_PROVIDER=claude');
-  const claude = new ClaudeProvider();
+function buildClaude(apiKey?: string): FullProvider {
+  // Accept a user-supplied key; fall back to env var (ClaudeProvider handles the final fallback + error)
+  const claude = new ClaudeProvider(apiKey);
   const groqKey = env.GROQ_API_KEY || env.TRANSCRIPTION_API_KEY;
   if (groqKey) {
     // Wrap: tries Claude first, falls back to Groq on credit exhaustion
@@ -29,18 +29,19 @@ function buildClaude(): FullProvider {
 /**
  * Return a live-answer / summary / practice provider.
  *
- * @param override  Per-session AI provider chosen in extension Settings.
- *                  When provided, bypasses the server's AI_PROVIDER env var.
- *                  Falls back to server default if the override can't be built.
+ * @param override     Per-session AI provider chosen in extension Settings.
+ * @param anthropicApiKey  Optional user-supplied Anthropic key (takes precedence over env var).
  */
-function getInstance(override?: 'groq' | 'claude'): FullProvider {
-  // Per-session override — build fresh (not cached)
-  if (override) {
+function getInstance(override?: 'groq' | 'claude', anthropicApiKey?: string): FullProvider {
+  // Per-session override or user key — always build fresh (not cached)
+  if (override || anthropicApiKey) {
     try {
-      return override === 'claude' ? buildClaude() : buildGroq();
+      if (override === 'groq') return buildGroq();
+      // claude override OR just a user-supplied key with no provider override
+      return buildClaude(anthropicApiKey);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[ai] Override "${override}" failed (${msg}), using server default`);
+      console.warn(`[ai] Override failed (${msg}), using server default`);
       // Fall through to server default below
     }
   }
@@ -56,16 +57,16 @@ function getInstance(override?: 'groq' | 'claude'): FullProvider {
   return _defaultInstance;
 }
 
-export function createLiveAnswerProvider(override?: 'groq' | 'claude'): LiveAnswerProvider {
-  return getInstance(override);
+export function createLiveAnswerProvider(override?: 'groq' | 'claude', anthropicApiKey?: string): LiveAnswerProvider {
+  return getInstance(override, anthropicApiKey);
 }
 
 export function createPracticeCoachProvider(): PracticeCoachProvider {
   return getInstance();
 }
 
-export function createSummaryProvider(override?: 'groq' | 'claude'): SummaryProvider {
-  return getInstance(override);
+export function createSummaryProvider(override?: 'groq' | 'claude', anthropicApiKey?: string): SummaryProvider {
+  return getInstance(override, anthropicApiKey);
 }
 
 export type { PracticeCoachProvider, LiveAnswerProvider, SummaryProvider } from './types.js';
